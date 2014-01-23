@@ -5,7 +5,7 @@
   "main": "server.js",
   "private": true,
   "scripts": {
-    "test": "make test",
+    "test": "./node_modules/.bin/mocha *_test.js",
     "start": "node server.js"
   },
   "author": "",
