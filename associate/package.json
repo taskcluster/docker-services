@@ -1,0 +1,20 @@
+{
+  "name": "docker_associate",
+  "version": "0.0.0",
+  "description": "Docker services in memory db",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "test": "make test",
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "~3.4.8"
+  },
+  "devDependencies": {
+    "mocha": "~1.17.1",
+    "supertest": "~0.9.0"
+  }
+}
