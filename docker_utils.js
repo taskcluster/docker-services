@@ -53,6 +53,10 @@ function removeImageIfExists(docker, image) {
 
 module.exports.removeImageIfExists = removeImageIfExists;
 
+/**
+Ensure a single image exists locally. If it does not exist locally pull it from
+the docker index.
+*/
 function ensureImage(docker, image) {
   // first attempt to find the image locally...
   return docker.getImage(image).inspect().then(
