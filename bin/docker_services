@@ -1,0 +1,8 @@
+#! /usr/bin/env node
+
+var args = process.argv;
+
+if (args[2] === '--version') {
+  console.log(require('../package.json').version);
+  process.exit(0);
+}

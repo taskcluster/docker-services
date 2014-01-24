@@ -1,6 +1,7 @@
 .PHONY: build
 build:
-	docker build -t taskcluster/docker-service-associate .
+	docker build -t \
+		taskcluster/docker-service-associate:$(shell ../bin/docker_services --version) .
 
 .PHONY: test
 test: build
