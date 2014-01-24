@@ -5,3 +5,4 @@ test_image:
 .PHONY: test
 test:
 	make -C associate test
+	./node_modules/.bin/mocha $(wildcard *_test.js)
