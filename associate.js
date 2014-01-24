@@ -1,3 +1,13 @@
+/**
+Docker does not have any built in container grouping (but we can name
+containers).  Since we want the ability to run many different "groups"
+of containers that are linked we need some method of defining those
+groups and persisting that information somewhere. The persisting is done
+on a docker container that holds the details of a particular group. This
+file manages those "associate" dockers which contain the details of the
+groups.
+*/
+
 var IMAGE = 'taskcluster/docker-service-associate';
 var IMAGE_TAG = require('./package.json').version;
 
@@ -6,7 +16,8 @@ var dockerUtils = require('./docker_utils');
 var request = require('./request');
 
 /**
-Lock a method to ensure only one instance of the method is running at once.
+Lock a method to ensure only one instance of the method is running at
+once.
 
 XXX: this could also be implemented with a weakmap in ES6
      (then we could avoid using name) and just use the context.
