@@ -102,6 +102,28 @@ Associate.prototype = {
         return this.docker.getContainer(this.name).stop();
       }.bind(this)
     );
+  },
+
+  /**
+  Remove the container.
+  */
+  delete: function() {
+    var container = this.docker.getContainer(this.name);
+
+    var existingContainer = function existingContainer() {
+      return this.down().then(
+        function removeContainer() {
+          return container.remove();
+        }
+      );
+    }.bind(this);
+
+    return container.inspect().then(
+      existingContainer,
+      function missing() {
+        return false;
+      }
+    );
   }
 };
 

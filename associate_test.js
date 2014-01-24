@@ -13,6 +13,10 @@ suite('associate', function() {
     subject = new Associate(docker, name);
   });
 
+  teardown(function() {
+    return subject.delete();
+  });
+
   test('#isUp', function(done) {
     return subject.isUp().then(
       function isUpValue(result) {
@@ -48,6 +52,29 @@ suite('associate', function() {
       return subject.isUp().then(
         function(isUp) {
           assert.ok(!isUp);
+        }
+      );
+    });
+  });
+
+  suite('#delete', function() {
+    setup(function() {
+      return subject.up();
+    });
+
+    setup(function(done) {
+      return subject.delete();
+    });
+
+    test('container is gone', function() {
+      return docker.getContainer(subject.name).inspect().then(
+        function(value) {
+          console.log(value);
+          throw new Error('container should be missing');
+        },
+
+        function(err) {
+          assert.ok(err.message.indexOf('404') !== -1);
         }
       );
     });
