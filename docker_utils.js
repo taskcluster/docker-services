@@ -61,7 +61,6 @@ function ensureImage(docker, image) {
   // first attempt to find the image locally...
   return docker.getImage(image).inspect().then(
     function inspection(gotImg) {
-      console.log(image, gotImg);
       // false means we didn't pull
       return false;
     },
