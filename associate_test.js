@@ -1,7 +1,10 @@
 suite('associate', function() {
-  var docker = require('./docker')();
+  var Promise = require('promise');
   var Associate = require('./associate');
+
+  var docker = require('./docker')();
   var uuid = require('uuid');
+  var request = require('./request');
 
   var subject;
   var name;
@@ -9,7 +12,6 @@ suite('associate', function() {
     // a new name is generated each time to ensure we don't connect to
     // old instances which did not get cleaned up.
     name = uuid.v4();
-
     subject = new Associate(docker, name);
   });
 
@@ -78,5 +80,17 @@ suite('associate', function() {
         }
       );
     });
+  });
+
+  test('#apiUrl', function() {
+    return subject.apiUrl().then(
+      function issueRequest(url) {
+        return request('GET', url + '/services').end();
+      }
+    ).then(
+      function(res) {
+        assert.deepEqual(res.body, {});
+      }
+    );
   });
 });

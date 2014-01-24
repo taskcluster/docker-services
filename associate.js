@@ -5,6 +5,22 @@ var Promise = require('promise');
 var dockerUtils = require('./docker_utils');
 
 /**
+Method decorator which will call up then call the given method if up is
+successful. Method given must return a promise.
+*/
+function ensureUp(method) {
+  return function autoUp() {
+    var args = Array.prototype.slice.call(arguments);
+    var context = this;
+    return this.up().then(
+      function handleUp() {
+        return method.apply(context, args);
+      }
+    );
+  }
+}
+
+/**
 The associate is a named docker container that acts "grouping" mechanism for
 other containers. With the associate we can lookup which containers belong to
 what groups and services.
@@ -35,6 +51,20 @@ Associate.prototype = {
   },
 
   /**
+  Determine the api URL for the associate.
+  */
+  apiUrl: ensureUp(function() {
+    var container = this.docker.getContainer(this.name);
+    return container.inspect().then(
+      function handleInspect(result) {
+        var hostConfig = result.HostConfig;
+        var ports = hostConfig.PortBindings['60044/tcp'][0];
+        return 'http://' + ports.HostIp + ':' + ports.HostPort;
+      }
+    );
+  }),
+
+  /**
   Resolves with the container id if its up.
   */
   isUp: function() {
@@ -53,7 +83,7 @@ Associate.prototype = {
   Start and name a docker associate container.
   */
   _start: function() {
-    var config = {
+    var createConfig = {
       name: this.name,
       Image: IMAGE + ':' + IMAGE_TAG,
       AttachStdin: false,
@@ -64,13 +94,23 @@ Associate.prototype = {
       }
     };
 
+    var startConfig = {
+      LxcConf: [],
+      Privileged: false,
+      PortBindings: {
+        // find a new open port to bind to
+        '60044/tcp': [{ HostIp: '', HostPort: '' }]
+      },
+      PublishAllPorts: false
+    };
+
     // create the container
     var docker = this.docker;
 
-    return docker.createContainer(config).then(
+    return docker.createContainer(createConfig).then(
       function containerCreated(_container) {
         container = docker.getContainer(_container.id);
-        return container.start();
+        return container.start(startConfig);
       }
     );
   },
