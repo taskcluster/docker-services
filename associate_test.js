@@ -71,7 +71,6 @@ suite('associate', function() {
     test('container is gone', function() {
       return docker.getContainer(subject.name).inspect().then(
         function(value) {
-          console.log(value);
           throw new Error('container should be missing');
         },
 
@@ -92,5 +91,46 @@ suite('associate', function() {
         assert.deepEqual(res.body, {});
       }
     );
+  });
+
+  test('#getServices', function() {
+    return subject.getServices().then(
+      function serviceList(items) {
+        assert.deepEqual(items, []);
+      }
+    );
+  });
+
+  suite('#addContainer', function() {
+    setup(function() {
+      var promises = [];
+      promises.push(subject.addContainer(1, 'foo'));
+      promises.push(subject.addContainer(2, 'bar'));
+
+      return Promise.all(promises);
+    });
+
+    test('list containers', function() {
+      return subject.getServices().then(
+        function serviceList(items) {
+          assert.deepEqual(items, {
+            foo: [{ id: 1, service: 'foo' }],
+            bar: [{ id: 2, service: 'bar' }]
+          });
+        }
+      );
+    });
+
+    test('remove then list', function() {
+      return subject.removeContainer(1).then(
+        function list() { return subject.getServices() }
+      ).then(
+        function handleList(items) {
+          assert.deepEqual(items, {
+            bar: [{ id: 2, service: 'bar' }]
+          });
+        }
+      );
+    });
   });
 });

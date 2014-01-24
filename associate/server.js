@@ -43,7 +43,7 @@ function normalizeContainers(array) {
 }
 
 // deletes containers by their ids.
-app.delete('/container', function deleteConainter(req, res) {
+app.delete('/containers', function deleteConainter(req, res) {
   var list = normalizeContainers(req.body);
   list.forEach(database.remove, database);
   res.send(200);

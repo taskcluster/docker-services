@@ -39,10 +39,10 @@ suite('associate server', function() {
         });
     });
 
-    suite('DELETE /container', function() {
+    suite('DELETE /containers', function() {
       setup(function(done) {
         request(server).
-          del('/container').
+          del('/containers').
           send(['1', { id: 3 }]).
           end(done);
       });
