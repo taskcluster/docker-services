@@ -8,3 +8,5 @@ USER docker_associate
 workdir /home/docker_associate/app
 run npm install
 expose 60044
+# USE CMD not entrypoint so its easy to override
+cmd ["npm", "start"]
