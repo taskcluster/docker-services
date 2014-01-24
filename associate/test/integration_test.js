@@ -14,7 +14,6 @@ suite('running as docker deamon', function() {
       'docker run -p 60044 -d taskcluster/docker-service-associate:' + version,
       function(err, _containerId) {
         containerId = _containerId.trim();
-        console.log(containerId);
         done(err);
       }
     );
