@@ -28,10 +28,80 @@ Associate.prototype = {
   /**
   Ensure the associate image has been downloaded.
 
-  @return Promise
+  @return Promise (will resolve as true if already installed).
   */
-  install: function() {
+  _install: function() {
     return dockerUtils.ensureImage(this.docker, IMAGE);
+  },
+
+  /**
+  Resolves with the container id if its up.
+  */
+  isUp: function() {
+    return this.docker.getContainer(this.name).inspect().then(
+      function onContainer(container) {
+        return container.State.Running;
+      },
+      function containerReject(err) {
+        // XXX: in reality we should check the error code
+        return false;
+      }
+    );
+  },
+
+  /**
+  Start and name a docker associate container.
+  */
+  _start: function() {
+    var config = {
+      name: this.name,
+      Image: IMAGE + ':' + IMAGE_TAG,
+      AttachStdin: false,
+      AttachStdout: true,
+      AttachStderr: true,
+      ExposedPorts: {
+        '60044/tcp': {}
+      }
+    };
+
+    // create the container
+    var docker = this.docker;
+
+    return docker.createContainer(config).then(
+      function containerCreated(_container) {
+        container = docker.getContainer(_container.id);
+        return container.start();
+      }
+    );
+  },
+
+  /**
+  Bring the associate up (if its not already online)
+  */
+  up: function() {
+    return this.isUp().then(
+      function isUpResult(container) {
+        // if its running return the container
+        if (container) {
+          return container;
+        }
+
+        // otherwise start a new container
+        return this._install().then(this._start.bind(this));
+      }.bind(this)
+    );
+  },
+
+  /**
+  Turn the associate off if its not already off.
+  */
+  down: function() {
+    return this.isUp().then(
+      function(isUp) {
+        if (!isUp) return false;
+        return this.docker.getContainer(this.name).stop();
+      }.bind(this)
+    );
   }
 };
 

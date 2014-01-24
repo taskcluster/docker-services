@@ -13,17 +13,41 @@ suite('associate', function() {
     subject = new Associate(docker, name);
   });
 
-  suite('#install', function() {
-    this.timeout('100s');
+  test('#isUp', function(done) {
+    return subject.isUp().then(
+      function isUpValue(result) {
+        assert.ok(!result, 'should not be up before launching container');
+      }
+    );
+  });
+
+  suite('#up', function() {
+    test('when the container is not up', function(done) {
+      return subject.up().then(
+        function(container) {
+          return subject.isUp();
+        }
+      ).then(
+        function isUpResult(isUp) {
+          assert.ok(isUp);
+        }
+      );
+    });
+  });
+
+  suite('#down', function() {
     setup(function() {
-      // install it
-      return subject.install();
+      return subject.up();
     });
 
-    test('image is available', function() {
-      return docker.listImages({ filter: subject.image }).then(
-        function onList(list) {
-          assert.ok(list);
+    setup(function() {
+      return subject.down();
+    });
+
+    test('container is off', function() {
+      return subject.isUp().then(
+        function(isUp) {
+          assert.ok(!isUp);
         }
       );
     });
