@@ -26,14 +26,42 @@ suite('group_config', function() {
       assert.ok(!subject.errors().length);
     });
 
-    test('no image', function() {
+    test('duplicate links (on same level)', function() {
       var subject = new GroupConifg({
-        'docker': {}
+        app: { links: ['proxy:proxy', 'proxy:proxy'] },
+        proxy: { links: ['monit'] }
       });
 
-      var errors = subject.errors();
-      assert.ok(errors.length, 'has errors');
-      assert.equal(errors[0].service, 'docker');
+      assert.ok(subject.errors().length);
+    });
+  });
+
+  suite('#dependencyGroups', function() {
+    test('multi-tier', function() {
+      var subject = new GroupConifg({
+        app: { image: 'app', links: ['db:db', 'queue:queue'] },
+        db: { image: 'db', links: ['monit:monit', 'xvfb:xvfb'] },
+        queue: { image: 'queue', links: ['monit:monit', 'amqp:amqp'] },
+        monit: { image: 'monit' },
+        xvfb: { image: 'xvfb' },
+        amqp: { image: 'amqp' }
+      });
+
+      var order = [
+        ['monit', 'xvfb', 'amqp'],
+        ['db', 'queue'],
+        ['app']
+      ];
+
+      var expected = order.map(function(group) {
+        return group.map(function(service) {
+          return subject.services[service];
+        });
+      });
+
+      var result = subject.dependencyGroups('app');
+
+      assert.deepEqual(result, expected);
     });
   });
 });

@@ -1,7 +1,34 @@
 var util = require('util');
 var ERRORS = {
-  NO_IMAGE: '%s service is missing an image'
+  NO_IMAGE: '%s service is missing an image',
+  DUPLICATE_LINK: '%s service has duplicate link names'
 };
+
+function detectDuplicateLinks(service) {
+  var links = service.links;
+  var seen = {};
+
+  return links.some(function(item) {
+    if (seen[item]) return true;
+    seen[item] = item;
+    return false;
+  });
+}
+
+/**
+Basic duplicate link checking for now more checks in the future.
+*/
+function detectCircular(services, name) {
+  var errors = [];
+  var config = services[name];
+
+  if (detectDuplicateLinks(config)) {
+    errors.push(error('DUPLICATE_LINK', name, config));
+    return errors;
+  }
+
+  return errors;
+}
 
 /**
 Format an error based on its name and service.
@@ -57,15 +84,53 @@ GroupConfig.prototype = {
   */
   errors: function() {
     var errors = [];
-    Object.keys(this.services).forEach(function(service) {
-      var config = this.services[service];
 
-      if (!config.image) {
-        errors.push(error('NO_IMAGE', service, config));
-      }
+    Object.keys(this.services).forEach(function(service) {
+      var circular = detectCircular(this.services, service);
+      if (circular.length) errors = errors.concat(circular);
     }, this);
 
     return errors;
+  },
+
+  /**
+  Images may have nested dependencies build a list of the services and return
+  them in the groups they can be launched in.
+
+  @return {Array} groups of dependencies.
+  */
+  dependencyGroups: function(name) {
+    var services = this.services;
+    var result = [];
+
+    function walkServices(names) {
+      var group = [];
+      // ghetto set
+      var nextServices = {};
+
+      names.forEach(function(name) {
+        // add the config to stack
+        var config = services[name];
+        group.push(config);
+
+        // find next batch of services to link
+        config.links.forEach(function(link) {
+          // service:alias docker link format
+          var service = link.split(':').shift();
+          nextServices[service] = true;
+        });
+      });
+
+      // prepend this group
+      result.unshift(group);
+
+      // process the next group
+      nextServices = Object.keys(nextServices);
+      if (nextServices.length > 0) walkServices(nextServices);
+    }
+
+    walkServices([name]);
+    return result;
   }
 };
 
