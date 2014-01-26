@@ -59,8 +59,8 @@ suite('group_config', function() {
         });
       });
 
-      var result = subject.dependencyGroups('app');
 
+      var result = subject.dependencyGroups('app');
       assert.deepEqual(result, expected);
     });
   });

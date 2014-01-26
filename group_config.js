@@ -1,4 +1,6 @@
 var util = require('util');
+var dependencyGroups = require('dependency-groups');
+
 var ERRORS = {
   NO_IMAGE: '%s service is missing an image',
   DUPLICATE_LINK: '%s service has duplicate link names'
@@ -12,6 +14,12 @@ function detectDuplicateLinks(service) {
     if (seen[item]) return true;
     seen[item] = item;
     return false;
+  });
+}
+
+function linksToServices(links) {
+  return links.map(function(link) {
+    return link.split(':').shift();
   });
 }
 
@@ -101,36 +109,24 @@ GroupConfig.prototype = {
   */
   dependencyGroups: function(name) {
     var services = this.services;
-    var result = [];
+    var relationships = {};
 
-    function walkServices(names) {
-      var group = [];
-      // ghetto set
-      var nextServices = {};
+    // first map it into the data structure dependency-groups expects
+    Object.keys(services).forEach(function(service) {
+      var conifg = services[service];
+      relationships[service] = linksToServices(conifg.links);
+    });
 
-      names.forEach(function(name) {
-        // add the config to stack
-        var config = services[name];
-        group.push(config);
+    var serviceGrouping = dependencyGroups(relationships);
+    return serviceGrouping.map(function(group) {
+      return group.map(function(serviceName) {
+        if (!services[serviceName]) {
+          throw new Error('unkown service ' + serviceName);
+        }
+        return services[serviceName];
+      }, this);
+    }, this);
 
-        // find next batch of services to link
-        config.links.forEach(function(link) {
-          // service:alias docker link format
-          var service = link.split(':').shift();
-          nextServices[service] = true;
-        });
-      });
-
-      // prepend this group
-      result.unshift(group);
-
-      // process the next group
-      nextServices = Object.keys(nextServices);
-      if (nextServices.length > 0) walkServices(nextServices);
-    }
-
-    walkServices([name]);
-    return result;
   }
 };
 
