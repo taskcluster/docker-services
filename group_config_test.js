@@ -9,6 +9,7 @@ suite('group_config', function() {
 
       assert.deepEqual(subject.services, {
         'docker': {
+          name: 'docker',
           links: [],
           image: 'dind',
           environment: {},
@@ -37,31 +38,47 @@ suite('group_config', function() {
   });
 
   suite('#dependencyGroups', function() {
-    test('multi-tier', function() {
-      var subject = new GroupConifg({
-        app: { image: 'app', links: ['db:db', 'queue:queue'] },
-        db: { image: 'db', links: ['monit:monit', 'xvfb:xvfb'] },
-        queue: { image: 'queue', links: ['monit:monit', 'amqp:amqp'] },
-        monit: { image: 'monit' },
-        xvfb: { image: 'xvfb' },
-        amqp: { image: 'amqp' }
-      });
+    var config = {
+      app: { image: 'app', links: ['db:db', 'queue:queue'] },
+      db: { image: 'db', links: ['monit:monit', 'xvfb:xvfb'] },
+      queue: { image: 'queue', links: ['monit:monit', 'amqp:amqp'] },
+      monit: { image: 'monit' },
+      xvfb: { image: 'xvfb' },
+      amqp: { image: 'amqp' }
+    };
 
+    var subject;
+    setup(function() {
+      subject = new GroupConifg(config);
+    });
+
+    function mapNamesToServices(order) {
+      return order.map(function(group) {
+        return group.map(function(service) {
+          return subject.services[service];
+        });
+      });
+    }
+
+    test('a nested dep', function() {
+      var order = [['monit', 'amqp', 'xvfb'], ['queue']];
+      assert.deepEqual(
+        mapNamesToServices(order),
+        subject.dependencyGroups(['queue', 'xvfb'])
+      );
+    });
+
+    test('all deps', function() {
       var order = [
         ['monit', 'xvfb', 'amqp'],
         ['db', 'queue'],
         ['app']
       ];
 
-      var expected = order.map(function(group) {
-        return group.map(function(service) {
-          return subject.services[service];
-        });
-      });
-
-
-      var result = subject.dependencyGroups('app');
-      assert.deepEqual(result, expected);
+      assert.deepEqual(
+        mapNamesToServices(order),
+        subject.dependencyGroups()
+      );
     });
   });
 });

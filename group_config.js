@@ -57,9 +57,10 @@ function error(name, service, config) {
 /**
 Internal helper to format services (does not do validation).
 */
-function Service(object) {
+function Service(name, object) {
   // copy all services into a normalized object
   return {
+    name: name,
     image: object.image || null,
     links: object.links || [],
     environment: object.environment || {},
@@ -79,7 +80,7 @@ function GroupConfig(object) {
 
   Object.keys(object).forEach(function(service) {
     var config = object[service];
-    services[service] = new Service(config);
+    services[service] = new Service(service, config);
   }, this);
 }
 
@@ -105,9 +106,10 @@ GroupConfig.prototype = {
   Images may have nested dependencies build a list of the services and return
   them in the groups they can be launched in.
 
+  @param {Array} [roots] list of services to return results for.
   @return {Array} groups of dependencies.
   */
-  dependencyGroups: function(name) {
+  dependencyGroups: function(roots) {
     var services = this.services;
     var relationships = {};
 
@@ -117,7 +119,7 @@ GroupConfig.prototype = {
       relationships[service] = linksToServices(conifg.links);
     });
 
-    var serviceGrouping = dependencyGroups(relationships);
+    var serviceGrouping = dependencyGroups(relationships, roots);
     return serviceGrouping.map(function(group) {
       return group.map(function(serviceName) {
         if (!services[serviceName]) {
