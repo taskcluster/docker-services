@@ -1,10 +1,10 @@
 {
   "app": {
-    "links": ['worker']
-    "image": 'docker-services-example-node-app'
+    "links": ["worker"],
+    "image": "docker-services-example-node-app"
   },
 
   "worker": {
-    "image": 'docker-services-example-node-worker'
+    "image": "docker-services-example-node-worker"
   }
 }
