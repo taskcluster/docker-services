@@ -1,19 +1,22 @@
 {
-  "name": "docker-stack-run",
+  "name": "docker-services",
   "version": "0.0.0",
-  "description": "docker-stack-test =================",
-  "main": "run.js",
+  "description": "docker-services",
+  "main": "group_containers.js",
   "scripts": {
     "test": "make test"
   },
+  "bin": {
+    "docker-services": "./bin/docker-services"
+  },
   "repository": {
     "type": "git",
-    "url": "git://github.com/taskcluster/docker-stack-run.git"
+    "url": "git://github.com/taskcluster/docker-services.git"
   },
   "author": "",
   "license": "BSD-2-Clause",
   "bugs": {
-    "url": "https://github.com/taskcluster/docker-stack-run/issues"
+    "url": "https://github.com/taskcluster/docker-services/issues"
   },
   "dependencies": {
     "dockerode-promise": "0.0.1",
