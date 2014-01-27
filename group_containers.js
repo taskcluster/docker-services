@@ -20,23 +20,6 @@ function trimServices(inspectResult, allowed) {
   });
 }
 
-function relateLinks(serviceLinks, linked) {
-  var result = [];
-  // check for links and build the link associations for this
-  // container.
-  serviceLinks.forEach(function(item) {
-    // we alias the names to services rather then running docker
-    // containers so we need to transform the link based on what the
-    // actual name is in docker.
-    var linkParts = item.split(':');
-    var linkServiceName = linkParts[0];
-    var linkAliasName = linkParts[1];
-
-    result.push(linked[linkServiceName] + ':' + linkAliasName);
-  });
-
-  return result;
-}
 
 /**
 @param {Dockerode} docker api.
@@ -78,16 +61,14 @@ GroupContainers.prototype = {
   /**
   Start a created container and link it.
 
-  @param {Object} service associated with the container.
+  @param {Object} name associated with the service.
   @param {String} containerId docker container id.
   @param {Object} links current link mapping.
   */
-  _start: function(service, containerId, links) {
-    debug('start container', containerId);
-    var startConfig = {
-      Links: relateLinks(service.links, links)
-    };
+  _start: function(name, containerId, links) {
+    debug('start container', name, containerId);
 
+    var startConfig = this.groupConfig.dockerStartConfig(name, links);
     return this.docker.getContainer(containerId).start(startConfig);
   },
 
@@ -98,12 +79,10 @@ GroupContainers.prototype = {
   @param {Object} links map of available links.
   */
   _deamonize: function(name, links) {
-    var service = this.groupConfig.services[name];
     var docker = this.docker;
 
-    debug('deamonize', name, service);
-
-    var createConfig = { Image: service.image };
+    debug('deamonize', name);
+    var createConfig = this.groupConfig.dockerCreateConfig(name);
 
     var containerInterface;
     var id;
@@ -117,7 +96,7 @@ GroupContainers.prototype = {
       }.bind(this)
     ).then(
       function() {
-        return this._start(service, id, links);
+        return this._start(name, id, links);
       }.bind(this)
     ).then(
       function() {
@@ -144,7 +123,7 @@ GroupContainers.prototype = {
           if (!instance.running) {
             // XXX: maybe this should throw as a link can be associated
             // with a down service and restarting might be a better idea.
-            promises.push(this._start(service, instance.id, links));
+            promises.push(this._start(name, instance.id, links));
           }
 
           // its running or we started it so move to the next item.
@@ -275,22 +254,21 @@ GroupContainers.prototype = {
   spawn: function(name, cmd, options) {
     debug('spawn', name, cmd);
     var deps = this.groupConfig.dependencyGroups([name]);
-    var service = this.groupConfig.services[name];
 
     // remove the root node
     deps.pop();
 
-    // XXX: add more options
-    var createConfig = {
-      Image: service.image,
-      Cmd: cmd || null
-    };
+    var overrides;
+    if (cmd) {
+      overrides = { Cmd: cmd };
+    }
 
-    var startConfig = {};
+    var createConfig = this.groupConfig.dockerCreateConfig(name, overrides);
 
     return this._up(deps).then(
       function(links) {
-        startConfig.Links = relateLinks(service.links, links);
+        var startConfig = this.groupConfig.dockerStartConfig(name, links);
+
         return new DockerProc(this.docker, {
           start: startConfig,
           create: createConfig

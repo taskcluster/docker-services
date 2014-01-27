@@ -1,7 +1,10 @@
 suite('docker_run', function() {
   var DockerRun = require('./docker_proc');
+  var GroupConfig = require('./group_config');
+
   var docker = require('./docker')();
   var config = require('./examples/node_cmd/docker_services');
+  var groupConfig = new GroupConfig(config);
 
   var workerImage = config.worker.image;
   var appImage = config.app.image;
@@ -45,11 +48,11 @@ suite('docker_run', function() {
 
   var subject;
   setup(function() {
+    var links = { worker: linkName };
+
     subject = new DockerRun(docker, {
-      create: {
-        Image: appImage
-      },
-      start: { Links: [linkName + ':worker'] }
+      create: groupConfig.dockerCreateConfig('app'),
+      start: groupConfig.dockerStartConfig('app', links)
     });
   });
 

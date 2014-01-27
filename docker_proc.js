@@ -2,40 +2,6 @@ var EventEmitter = require('events').EventEmitter;
 var streams = require('stream');
 var debug = require('debug')('docker-services:exec');
 
-function createDefaults(create) {
-  var config = {
-    Hostname: '',
-    User: '',
-    AttachStdin: false,
-    AttachStdout: true,
-    AttachStderr: true,
-    Tty: false,
-    OpenStdin: false,
-    StdinOnce: false,
-    Env: null,
-    Volumes: {},
-    VolumesFrom: ''
-  };
-
-  for (var key in create) config[key] = create[key];
-  return config;
-}
-
-function startDefaults(start) {
-  var config = {
-    Binds: null,
-    ContainerIDFile: '',
-    LxcConf: [],
-    Privileged: false,
-    PortBindings: {},
-    Links: [],
-    PublishAllPorts: false
-  };
-
-  for (var key in start) config[key] = start[key];
-  return config;
-}
-
 /**
 Loosely modeled on node's own child_process object thought the interface to get
 the child process is different.
@@ -44,8 +10,8 @@ function DockerProc(docker, config) {
   EventEmitter.call(this);
 
   this.docker = docker;
-  this._createConfig = createDefaults(config.create);
-  this._startConfig = startDefaults(config.start);
+  this._createConfig = config.create;
+  this._startConfig = config.start;
 
   this.stdout = new streams.PassThrough();
   this.stderr = new streams.PassThrough();

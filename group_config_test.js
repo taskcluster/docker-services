@@ -12,10 +12,70 @@ suite('group_config', function() {
           name: 'docker',
           links: [],
           image: 'dind',
-          environment: {},
-          ports: {}
+          createConfig: {},
+          startConfig: {}
         }
       });
+    });
+  });
+
+  suite('#dockerCreateConfig', function() {
+    var subject = new GroupConifg({
+      docker: {
+        image: 'dind',
+        createConfig: {
+          ExposedPorts: {
+            '4243/tcp': {}
+          }
+        }
+      }
+    });
+
+
+    test('with overrides', function() {
+      var create = subject.dockerCreateConfig(
+        'docker',
+        { Override: true }
+      );
+
+      assert.equal(create.Image, 'dind');
+      assert.deepEqual(create.ExposedPorts, { '4243/tcp': {} });
+      assert.equal(create.Override, true);
+    });
+  });
+
+  suite('#dockerStartConfig', function() {
+    var subject = new GroupConifg({
+      docker: {
+        image: 'dind',
+        startConfig: { Privileged: true }
+      },
+      amqp: { image: 'amqp' },
+
+      app: {
+        image: 'app',
+        links: ['docker:docker', 'amqp:amqp']
+      }
+    });
+
+    test('with overrides', function() {
+      var links = {
+        docker: 'container/docker',
+        amqp: 'container/amqp'
+      };
+
+      var start = subject.dockerStartConfig(
+        'app',
+        links,
+        { PublishAllPorts: true }
+      );
+
+      assert.deepEqual(start.Links, [
+        links.docker + ':docker',
+        links.amqp + ':amqp'
+      ]);
+
+      assert.ok(start.PublishAllPorts, 'overrides apply');
     });
   });
 

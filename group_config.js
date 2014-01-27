@@ -1,5 +1,6 @@
 var util = require('util');
 var dependencyGroups = require('dependency-groups');
+var assert = require('assert');
 
 var ERRORS = {
   NO_IMAGE: '%s service is missing an image',
@@ -63,8 +64,8 @@ function Service(name, object) {
     name: name,
     image: object.image || null,
     links: object.links || [],
-    environment: object.environment || {},
-    ports: object.ports || {}
+    startConfig: object.startConfig || {},
+    createConfig: object.createConfig || {}
   };
 }
 
@@ -100,6 +101,100 @@ GroupConfig.prototype = {
     }, this);
 
     return errors;
+  },
+
+  /**
+  Build the docker create configuration from the service config and the
+  (optional) overrides.
+
+  http://docs.docker.io/en/latest/api/docker_remote_api_v1.8/#create-a-container
+
+  @param {String} name of the service.
+  @param {Object} [overrides] for the service.
+  @return {Object} completed create configuration.ku
+  */
+  dockerCreateConfig: function(name, overrides) {
+    var service = this.services[name];
+    assert(service, 'unkown service: ' + name);
+
+    var config = {
+      Hostname: '',
+      User: '',
+      AttachStdin: false,
+      AttachStdout: true,
+      AttachStderr: true,
+      Tty: false,
+      OpenStdin: false,
+      StdinOnce: false,
+      Env: null,
+      Volumes: {},
+      VolumesFrom: ''
+    };
+
+    config.Image = service.image;
+
+    for (var key in service.createConfig) {
+      config[key] = service.createConfig[key];
+    }
+
+    if (overrides) {
+      for (var key in overrides) config[key] = overrides[key];
+    }
+
+    return config;
+  },
+
+  /*
+  Build the docker start configuration from the service config, available links
+  and the (optional) overrides.
+
+
+  http://docs.docker.io/en/latest/api/docker_remote_api_v1.8/#start-a-container
+
+  @param {String} name of the service.
+  @param {Object} [overrides] for the service.
+  @return {Object} completed create configuration.ku
+  */
+  dockerStartConfig: function(name, serviceToContainer, overrides) {
+    var service = this.services[name];
+    assert(service, 'unkown service: ' + name);
+
+    var config = {
+      Binds: null,
+      ContainerIDFile: '',
+      LxcConf: [],
+      Privileged: false,
+      PortBindings: {},
+      Links: [],
+      PublishAllPorts: false
+    };
+
+    // apply start config
+    for (var key in service.startConfig) {
+      config[key] = service.startConfig[key];
+    }
+
+    // check for links and build the link associations for this
+    // container.
+    service.links.forEach(function(item) {
+      // we alias the names to services rather then running docker
+      // containers so we need to transform the link based on what the
+      // actual name is in docker.
+      var linkParts = item.split(':');
+      var linkServiceName = linkParts[0];
+      var linkAliasName = linkParts[1];
+
+      config.Links.push(
+        serviceToContainer[linkServiceName] + ':' + linkAliasName
+      );
+    });
+
+    // apply the overrides
+    if (overrides) {
+      for (var key in overrides) config[key] = overrides[key];
+    }
+
+    return config;
   },
 
   /**
