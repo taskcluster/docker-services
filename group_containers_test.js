@@ -13,6 +13,10 @@ suite('group_containers', function() {
     subject = new GroupContainers(docker, cmdConfig, name);
   });
 
+  teardown(function() {
+    return subject.remove();
+  });
+
   suite('#_deamonize', function() {
     var id;
     setup(function() {
@@ -21,10 +25,6 @@ suite('group_containers', function() {
           id = _id;
         }
       );
-    });
-
-    teardown(function() {
-      return subject._stop(id);
     });
 
     // verify the worker was launched and get its id
@@ -303,6 +303,74 @@ suite('group_containers', function() {
         );
       });
     });
+  });
 
+  suite('#up', function() {
+    test('all services', function() {
+      return subject.up().then(
+        function() { return subject.inspectServices() }
+      ).then(
+        function(services) {
+          assert.ok(services.worker, 'has workers');
+          assert.ok(services.app, 'has apps');
+          assert.equal(services.worker[0].running, true);
+          assert.equal(services.app[0].running, true);
+        }
+      );
+    });
+
+    test('worker only', function() {
+      return subject.up(['worker']).then(
+        function() { return subject.inspectServices() }
+      ).then(
+        function(services) {
+          assert.ok(services.worker, 'has workers');
+          assert.ok(!services.app, 'has apps');
+          assert.equal(services.worker[0].running, true);
+        }
+      );
+    });
+  });
+
+  suite('#down', function() {
+    suite('everything', function() {
+      setup(function() {
+        return subject.up();
+      });
+
+      setup(function() {
+        return subject.down();
+      });
+
+      test('nothing is running', function() {
+        return subject.inspectServices().then(
+          function services(services) {
+            assert.ok(services.worker, 'has worker');
+            assert.ok(services.app, 'has app');
+
+            assert.ok(!services.worker[0].running, 'worker is off');
+            assert.ok(!services.app[0].running, 'app is off');
+          }
+        );
+      });
+    });
+  });
+
+  suite('#remove', function() {
+    setup(function() {
+      return subject.up();
+    });
+
+    setup(function() {
+      return subject.remove();
+    });
+
+    test('everything is removed', function() {
+      return subject.inspectServices().then(
+        function services(services) {
+          assert.equal(Object.keys(services).length, 0);
+        }
+      );
+    });
   });
 });

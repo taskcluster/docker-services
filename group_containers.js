@@ -5,6 +5,21 @@ var DockerProc = require('./docker_proc');
 
 var debug = require('debug')('docker-service:group_containers');
 
+/**
+Trim down the services returned by inspect services to only those in the allowed
+parameter (or just return everything if nothing is in allowed).
+*/
+function trimServices(inspectResult, allowed) {
+  if (!allowed) return inspectResult;
+
+  var results = {};
+
+  allowed.forEach(function(name) {
+    if (!inspectResult[name]) return;
+    results[name] = inspectResult[name];
+  });
+}
+
 function relateLinks(serviceLinks, linked) {
   var result = [];
   // check for links and build the link associations for this
@@ -42,6 +57,7 @@ GroupContainers.prototype = {
   Docker wrapper around stop (mostly here for consistency)
   */
   _stop: function(containerId) {
+    debug('stop container', containerId);
     var containerInterface = this.docker.getContainer(containerId);
     return containerInterface.stop();
   },
@@ -50,6 +66,7 @@ GroupContainers.prototype = {
   Remove a particular instance of an node (again for consistency)
   */
   _remove: function(containerId) {
+    debug('remove container', containerId);
     return this._stop(containerId).then(
       function stopped() {
         var containerInterface = this.docker.getContainer(containerId);
@@ -66,6 +83,7 @@ GroupContainers.prototype = {
   @param {Object} links current link mapping.
   */
   _start: function(service, containerId, links) {
+    debug('start container', containerId);
     var startConfig = {
       Links: relateLinks(service.links, links)
     };
@@ -181,13 +199,81 @@ GroupContainers.prototype = {
   },
 
   /**
+  Launch services and their dependencies.
+
+  @param {Array} [services] optional list of services to launch.
+  @return {Promise}
+  */
+  up: function(services) {
+    debug('up');
+    var deps = this.groupConfig.dependencyGroups(services);
+    return this._up(deps);
+  },
+
+  /**
+  Invoke a method on all services which have containers.
+  */
+  _invokeContainerMethod: function(method) {
+    var actioned = [];
+    return this.inspectServices().then(
+      function onCurrentServices(currentServices) {
+        var promises = [];
+
+        for (var name in currentServices) {
+          currentServices[name].forEach(function(service) {
+            var promise = method(service);
+            if (promise) {
+              actioned.push(service);
+              promises.push(promise);
+            }
+          }, this);
+        }
+        return Promise.all(promises);
+      }.bind(this)
+    ).then(
+      function() { return actioned; }
+    );
+  },
+
+  /**
+  Return off services and their dependencies.
+
+  XXX: this should allow selective grouping of services.
+
+  @return {Promise}
+  */
+  down: function() {
+    debug('down');
+    return this._invokeContainerMethod(function(service) {
+      if (service.running) {
+        return this._stop(service.id);
+      }
+    }.bind(this));
+  },
+
+  /**
+  Remove services and their dependencies.
+
+  XXX: This should allow selective grouping of services.
+
+  @return {Promise}
+  */
+  remove: function() {
+    debug('remove');
+    return this._invokeContainerMethod(function(service) {
+      return this._remove(service.id);
+    }.bind(this));
+  },
+
+  /**
   Resolve all dependencies for a given service (bring them up) and resolve with
-  a DockerProc value which can be used to run the service and get its 
+  a DockerProc value which can be used to run the service and get its
   stdout/stderr.
 
-  @return Promise
+  @return {Promise}
   */
   spawn: function(name, cmd, options) {
+    debug('spawn', name, cmd);
     var deps = this.groupConfig.dependencyGroups([name]);
     var service = this.groupConfig.services[name];
 
@@ -226,32 +312,59 @@ GroupContainers.prototype = {
   */
   inspectServices: function() {
     var docker = this.docker;
+    var associate = this.associate;
+    var result;
 
     function mapServiceToContainer(list) {
-      return list.map(function(service) {
-        var container = docker.getContainer(service.id);
+      return list.map(function(serviceNode) {
+        var container = docker.getContainer(serviceNode.id);
         return container.inspect().then(
           function available(result) {
-            service.running = result.State.Running;
-            service.name = result.Name;
+            serviceNode.running = result.State.Running;
+            serviceNode.name = result.Name;
             // docker uses id, Id AND ID
-            service.id = result.ID;
-            service.inspection = result;
-          }
-          // XXX: we need to handle containers which have been removed
+            serviceNode.id = result.ID;
+            serviceNode.inspection = result;
+          },
+          function missingContainer(err) {
+            if (err.message.indexOf('404') === -1) throw err;
+            debug(
+              'removing missing service node',
+              serviceNode.service,
+              serviceNode.id
+            );
+
+            // remove the service from the in memory list
+            var idx = list.indexOf(serviceNode);
+            if (idx !== -1) {
+              list.splice(idx, 1);
+
+              // remove the whole service if it has zero nodes
+              if (!result[serviceNode.service].length) {
+                delete result[serviceNode.service];
+              }
+            }
+
+            // also remove it from the associate
+            return associate.removeContainer(serviceNode.id);
+          }.bind(this)
         );
       });
     }
 
     return this.associate.getServices().then(
       function services(services) {
+        result = services;
+
         var promises = [];
-        for (var key in services) {
-          promises = promises.concat(mapServiceToContainer(services[key]));
+        for (var key in result) {
+          promises = promises.concat(mapServiceToContainer(result[key]));
         }
 
         return Promise.all(promises).then(
-          function() { return services; }
+          function() {
+            return result;
+          }
         );
       }
     );
