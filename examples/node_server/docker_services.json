@@ -1,0 +1,10 @@
+{
+  "app": {
+    "links": ["worker:worker"],
+    "image": "docker-services-example-node-server-app"
+  },
+
+  "worker": {
+    "image": "docker-services-example-node-server-worker"
+  }
+}
