@@ -1,5 +1,5 @@
 suite('docker_run', function() {
-  var DockerRun = require('./docker_exec');
+  var DockerRun = require('./docker_proc');
   var docker = require('./docker')();
   var config = require('./examples/node_cmd/docker_services');
 
@@ -67,19 +67,30 @@ suite('docker_run', function() {
         buffer.push(item.toString());
       }
 
-      subject.once('streams', function(stdout, stderr) {
-        stdout.on('data', append.bind(null, stdoutBuffer));
-        stderr.on('data', append.bind(null, stderrBuffer));
+      var promise = subject.exec();
+
+      assert.ok(subject.stdout, 'has stdout, stream');
+      assert.ok(subject.stderr, 'has stderr stream');
+
+      subject.stdout.on('data', append.bind(null, stdoutBuffer));
+      subject.stderr.on('data', append.bind(null, stderrBuffer));
+      assert.equal(subject.exitCode, null);
+
+
+      var didExit = false;
+      subject.once('exit', function() {
+        didExit = true;
       });
 
-      return subject.exec().then(
+      return promise.then(
         function(status) {
           assert.ok(stderrBuffer.length, 'has stderr');
           assert.ok(stdoutBuffer.length, 'has stdout');
           assert.equal(stdoutBuffer[0], 'stdout');
           assert.equal(stderrBuffer[0], 'stderr');
 
-          assert.equal(status.StatusCode, 0);
+          assert.equal(subject.exitCode, 0);
+          assert.ok(didExit, 'stream is marked as exited');
         }
       );
     });

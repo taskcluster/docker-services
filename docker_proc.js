@@ -36,32 +36,44 @@ function startDefaults(start) {
   return config;
 }
 
-function splitStreams(run, container, stream) {
-  var modem = container.modem;
-
-  var stdout = new streams.PassThrough();
-  var stderr = new streams.PassThrough();
-
-  modem.demuxStream(stream, stdout, stderr);
-  run.emit('streams', stdout, stderr);
-}
-
-function DockerRun(docker, config) {
+/**
+Loosely modeled on node's own child_process object thought the interface to get
+the child process is different.
+*/
+function DockerProc(docker, config) {
   EventEmitter.call(this);
 
   this.docker = docker;
-  this.create = createDefaults(config.create);
-  this.start = startDefaults(config.start);
+  this._createConfig = createDefaults(config.create);
+  this._startConfig = startDefaults(config.start);
+
+  this.stdout = new streams.PassThrough();
+  this.stderr = new streams.PassThrough();
 }
 
-DockerRun.prototype = {
+DockerProc.prototype = {
   __proto__: EventEmitter.prototype,
+
+  /**
+  stdout stream from the docker node.
+  */
+  stdout: null,
+
+  /**
+  stderr stream from the docker node
+  */
+  stderr: null,
+
+  /**
+  exitCode (may be null!)
+  */
+  exitCode: null,
 
   /**
   Run the docker process and resolve the promise on complete.
   */
   exec: function() {
-    debug('exec', this.create, this.start);
+    debug('exec', this._createConfig, this._startConfig);
 
     var docker = this.docker;
 
@@ -71,7 +83,7 @@ DockerRun.prototype = {
       stderr: true
     };
 
-    var create = docker.createContainer(this.create);
+    var create = docker.createContainer(this._createConfig);
     var container;
 
     return create.then(
@@ -83,8 +95,15 @@ DockerRun.prototype = {
     ).then(
       function attachedContainer(stream) {
         debug('attached');
-        splitStreams(this, container, stream);
-        var start = container.start(this.start);
+
+        // attach the streams to out std(out|err) streams.
+        container.modem.demuxStream(
+          stream,
+          this.stdout,
+          this.stderr
+        );
+
+        var start = container.start(this._startConfig);
         return start;
       }.bind(this)
     ).then(
@@ -92,8 +111,17 @@ DockerRun.prototype = {
         debug('initiate wait for container');
         return container.wait();
       }
+    ).then(
+      function markExit(result) {
+        this.exitCode = result.StatusCode;
+
+        // emit exit so we behave more like a normal child process
+        this.emit('exit', this.exitCode);
+        // close is the same as exit in this context so emit that now
+        this.emit('close', this.exitCode);
+      }.bind(this)
     );
   }
 };
 
-module.exports = DockerRun;
+module.exports = DockerProc;
