@@ -5,5 +5,6 @@ test_image:
 .PHONY: test
 test:
 	make -C associate test
-	make -C examples/node
+	make -C examples/node_cmd
+	make -C examples/node_server
 	./node_modules/.bin/mocha $(wildcard *_test.js)

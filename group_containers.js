@@ -1,6 +1,7 @@
 var Associate = require('./associate');
 var GroupConfig = require('./group_config');
 var Promise = require('promise');
+var DockerExec = require('./docker_exec');
 
 /**
 @param {Dockerode} docker api.
@@ -71,6 +72,9 @@ GroupContainers.prototype = {
     );
   },
 
+  _up: function(dependencies) {
+  },
+
   inspectServices: function() {
     var docker = this.docker;
 
@@ -80,6 +84,9 @@ GroupContainers.prototype = {
         return container.inspect().then(
           function available(result) {
             service.running = result.State.Running;
+            service.name = result.Name;
+            // docker uses id, Id AND ID
+            service.id = result.ID;
             service.inspection = result;
           }
           // XXX: we need to handle containers which have been removed
@@ -87,7 +94,6 @@ GroupContainers.prototype = {
       });
     }
 
-    var serviceList;
     return this.associate.getServices().then(
       function services(services) {
         var promises = [];

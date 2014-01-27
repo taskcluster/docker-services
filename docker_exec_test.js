@@ -1,7 +1,7 @@
 suite('docker_run', function() {
   var DockerRun = require('./docker_exec');
   var docker = require('./docker')();
-  var config = require('./examples/node/docker_services');
+  var config = require('./examples/node_cmd/docker_services');
 
   var workerImage = config.worker.image;
   var appImage = config.app.image;

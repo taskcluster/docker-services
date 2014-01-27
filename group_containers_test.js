@@ -1,6 +1,7 @@
 suite('group_containers', function() {
   var uuid = require('uuid');
-  var config = require('./examples/node/docker_services.json');
+  var cmdConfig = require('./examples/node_cmd/docker_services.json');
+  var serverConfig = require('./examples/node_server/docker_services.json');
   var docker = require('./docker')();
 
   var GroupContainers = require('./group_containers');
@@ -9,7 +10,7 @@ suite('group_containers', function() {
   var name;
   setup(function() {
     name = uuid.v4();
-    subject = new GroupContainers(docker, config, name);
+    subject = new GroupContainers(docker, cmdConfig, name);
   });
 
   suite('#_deamonize', function() {
@@ -40,7 +41,7 @@ suite('group_containers', function() {
       return docker.getContainer(id).inspect().then(
         function onInspect(result) {
           assert.ok(result.State.Running, 'service is running');
-          assert.equal(result.Config.Image, config.worker.image);
+          assert.equal(result.Config.Image, cmdConfig.worker.image);
         }
       );
     });
@@ -111,10 +112,49 @@ suite('group_containers', function() {
     });
   });
 
+  suite('#_up', function() {
+    setup(function() {
+      subject = new GroupContainers(docker, serverConfig, name);
+    });
+
+    suite('when nothing is running', function() {
+      setup(function() {
+        return subject._up(subject.groupConfig.dependencyGroups());
+      });
+
+      test('everything should be launched', function() {
+      });
+    });
+  });
+
   suite('#inspectServices', function() {
+    var id;
     setup(function() {
       // launch a worker node
-      return subject._deamonize('worker');
+      return subject._deamonize('worker').then(
+        function(_id) {
+          id = _id;
+        }
+      );
+    });
+
+    test.skip('with removed service', function() {
+      // XXX: Handle the case where the user has removed the container
+      //      manually.
+    });
+
+    test('with stopped service', function() {
+      return subject._stop(id).then(
+        function() {
+          return subject.inspectServices();
+        }
+      ).then(
+        function(services) {
+          var workers = services.worker;
+          assert.ok(workers.length, 'has workers');
+          assert.equal(workers[0].running, false);
+        }
+      );
     });
 
     test('with running service', function() {
@@ -122,7 +162,21 @@ suite('group_containers', function() {
         function services(services) {
           var workers = services.worker;
           assert.ok(workers.length, 'has workers');
-          assert.equal(workers[0].running, true);
+          var worker = workers[0];
+          assert.equal(worker.running, true);
+          assert.ok(worker.name, 'has .name');
+          assert.ok(worker.id, 'has .id');
+        }
+      );
+    });
+  });
+
+  suite('#exec', function() {
+    return;
+    test('simple one dep operation', function() {
+      return subject.exec('app').then(
+        function(result) {
+          console.log(result);
         }
       );
     });
