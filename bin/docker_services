@@ -1,8 +1,51 @@
 #! /usr/bin/env node
 
-var args = process.argv;
+var program = require('commander'),
+    docker = require('../docker')(),
+    uuid = require('uuid'),
+    fsPath = require('path');
 
-if (args[2] === '--version') {
-  console.log(require('../package.json').version);
-  process.exit(0);
-}
+var ContainerGroup = require('../group_containers');
+var SERVICES_FILE = 'docker_services.json';
+
+program.
+  command('exec <service> [cmd]').
+  description('run a command on a service then shut it down').
+  option(
+    '-c, --config-file <path>',
+    'set the config file that describes the service',
+    fsPath.resolve(process.cwd(), SERVICES_FILE)
+  ).
+  action(function(service, cmd, command) {
+    var config = require(command.configFile);
+    var name = uuid.v4();
+    var group = new ContainerGroup(docker, config, name);
+
+    group.spawn(service, cmd).then(
+      function (dockerProc) {
+        dockerProc.stdout.pipe(process.stdout);
+        dockerProc.stderr.pipe(process.stderr);
+
+        dockerProc.exec().then(
+          function() {
+            // cleanup old groups
+            return group.remove();
+          }
+        ).then(
+          function () {
+            return group.associate.delete();
+          }
+        ).then(
+          function() {
+            process.exit(dockerProc.exitCode);
+          },
+          function (err) {
+            console.error(err.message);
+            process.exit(1);
+          }
+        );
+      }
+    )
+  });
+
+program.parse(process.argv);
