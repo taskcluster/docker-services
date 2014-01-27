@@ -5,6 +5,9 @@ docker images. Images can depend on other images, etc...
 
 ### Examples
 
+See [/examples](/examples) for the full list of fully functional (and
+tested) examples.
+
 Lets say you have a node application which has a worker and uses both
 use amqp.
 

@@ -1,0 +1,19 @@
+{
+  "app": {
+    "image": "docker-services-example-docker-app",
+    "links": ["docker:docker"]
+  },
+
+  "docker": {
+    "image": "jpetazzo/dind",
+    "createConfig": {
+      "Env": ["PORT=4444"],
+      "ExposedPorts": {
+        "4444/tcp": {}
+      }
+    },
+    "startConfig": {
+      "Privileged": true
+    }
+  }
+}
