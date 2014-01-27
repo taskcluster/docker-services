@@ -9,6 +9,7 @@ var ContainerGroup = require('../group_containers');
 var SERVICES_FILE = 'docker_services.json';
 
 program.
+  version(require('../package.json').version).
   option('--version', 'return the current version of docker-services').
   command('exec <service> [cmd]').
   description('run a command on a service then shut it down').
@@ -18,7 +19,7 @@ program.
     fsPath.resolve(process.cwd(), SERVICES_FILE)
   ).
   action(function(service, cmd, command) {
-    var config = require(command.configFile);
+    var config = require(fsPath.resolve(command.configFile));
     var name = uuid.v4();
     var group = new ContainerGroup(docker, config, name);
 
@@ -50,8 +51,3 @@ program.
   });
 
 program.parse(process.argv);
-
-if (process.version) {
-  console.log(require('../package.json').version);
-  process.exit(0);
-}
