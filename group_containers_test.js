@@ -206,8 +206,18 @@ suite('group_containers', function() {
     });
 
     suite('nothing is running', function() {
+      var links;
       setup(function() {
-        return subject._up(deps);
+        return subject._up(deps).then(
+          function(result) {
+            links = result;
+          }
+        );
+      });
+
+      test('returned links', function() {
+        assert.ok(links.worker);
+        assert.ok(links.app);
       });
 
       test('everything should be launched', function() {
@@ -271,14 +281,28 @@ suite('group_containers', function() {
     });
   });
 
-  suite('#exec', function() {
-    return;
-    test('simple one dep operation', function() {
-      return subject.exec('app').then(
-        function(result) {
-          console.log(result);
-        }
-      );
+  suite('#spawn', function() {
+    suite('simple one dependency', function() {
+      var dockerProc;
+      setup(function() {
+        return subject.spawn('app').then(
+          function(proc) {
+            dockerProc = proc;
+          }
+        );
+      });
+
+      test('returns docker process', function() {
+        assert.ok(dockerProc, 'returns proc');
+        assert.equal(dockerProc.exitCode, null);
+
+        return dockerProc.exec().then(
+          function() {
+            assert.equal(dockerProc.exitCode, 0);
+          }
+        );
+      });
     });
+
   });
 });

@@ -1,9 +1,27 @@
 var Associate = require('./associate');
 var GroupConfig = require('./group_config');
 var Promise = require('promise');
-var DockerExec = require('./docker_exec');
+var DockerProc = require('./docker_proc');
 
 var debug = require('debug')('docker-service:group_containers');
+
+function relateLinks(serviceLinks, linked) {
+  var result = [];
+  // check for links and build the link associations for this
+  // container.
+  serviceLinks.forEach(function(item) {
+    // we alias the names to services rather then running docker
+    // containers so we need to transform the link based on what the
+    // actual name is in docker.
+    var linkParts = item.split(':');
+    var linkServiceName = linkParts[0];
+    var linkAliasName = linkParts[1];
+
+    result.push(linked[linkServiceName] + ':' + linkAliasName);
+  });
+
+  return result;
+}
 
 /**
 @param {Dockerode} docker api.
@@ -48,20 +66,9 @@ GroupContainers.prototype = {
   @param {Object} links current link mapping.
   */
   _start: function(service, containerId, links) {
-    var startConfig = { Links: [] };
-
-    // check for links and build the link associations for this
-    // container.
-    service.links.forEach(function(item) {
-      // we alias the names to services rather then running docker
-      // containers so we need to transform the link based on what the
-      // actual name is in docker.
-      var linkParts = item.split(':');
-      var linkServiceName = linkParts[0];
-      var linkAliasName = linkParts[1];
-
-      startConfig.Links.push(links[linkServiceName] + ':' + linkAliasName);
-    });
+    var startConfig = {
+      Links: relateLinks(service.links, links)
+    };
 
     return this.docker.getContainer(containerId).start(startConfig);
   },
@@ -168,9 +175,55 @@ GroupContainers.prototype = {
         }
         return chain;
       }.bind(this)
+    ).then(
+      function() { return links; }
     );
   },
 
+  /**
+  Resolve all dependencies for a given service (bring them up) and resolve with
+  a DockerProc value which can be used to run the service and get its 
+  stdout/stderr.
+
+  @return Promise
+  */
+  spawn: function(name, cmd, options) {
+    var deps = this.groupConfig.dependencyGroups([name]);
+    var service = this.groupConfig.services[name];
+
+    // remove the root node
+    deps.pop();
+
+    // XXX: add more options
+    var createConfig = {
+      Image: service.image,
+      Cmd: cmd || null
+    };
+
+    var startConfig = {};
+
+    return this._up(deps).then(
+      function(links) {
+        startConfig.Links = relateLinks(service.links, links);
+        return new DockerProc(this.docker, {
+          start: startConfig,
+          create: createConfig
+        });
+      }.bind(this)
+    );
+  },
+
+  /**
+  Run a status check on all services in this group.
+
+    // value looks like this
+    {
+      worker: [{ name: '/docker_name', id: 'woot', running: true }],
+     ...
+    }
+
+  @return {Promise}
+  */
   inspectServices: function() {
     var docker = this.docker;
 
