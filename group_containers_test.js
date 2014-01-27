@@ -45,6 +45,37 @@ suite('group_containers', function() {
         }
       );
     });
+
+    suite('with linking', function() {
+      // find the name
+      var name;
+      setup(function() {
+        return docker.getContainer(id).inspect().then(
+          function(result) {
+            name = result.Name;
+          }
+        );
+      });
+
+      test('launch with linked node', function() {
+        var container;
+        return subject._deamonize('app', { worker: name }).then(
+          function(id) {
+            container = docker.getContainer(id);
+            return container.wait();
+          }
+        ).then(
+          function(result) {
+            // This will fail if the link is not created correctly
+            assert.equal(result.StatusCode, 0);
+          }
+        ).then(
+          function() {
+            return container.remove();
+          }
+        );
+      });
+    });
   });
 
   suite('#_stop', function() {
@@ -123,6 +154,19 @@ suite('group_containers', function() {
       });
 
       test('everything should be launched', function() {
+        return subject.inspectServices().then(
+          function(result) {
+            console.log(result);
+            assert.ok(result.worker, 'has worker');
+            assert.ok(result.app, 'has app');
+
+            var worker = result.worker[0];
+            var app = result.app[0];
+
+            assert.ok(worker.running, 'worker is running');
+            assert.ok(app.running, 'app is running');
+          }
+        );
       });
     });
   });
