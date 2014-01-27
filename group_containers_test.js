@@ -17,6 +17,10 @@ suite('group_containers', function() {
     return subject.remove();
   });
 
+  teardown(function() {
+    return subject.associate.delete();
+  });
+
   suite('#_deamonize', function() {
     var id;
     setup(function() {

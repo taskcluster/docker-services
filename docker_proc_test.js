@@ -24,8 +24,6 @@ suite('docker_run', function() {
   });
 
   teardown(function() {
-    return;
-
     return workerContainer.stop({}).then(
       function() {
         return workerContainer.remove();

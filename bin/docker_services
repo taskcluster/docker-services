@@ -32,7 +32,7 @@ program.
             return group.remove();
           }
         ).then(
-          function () {
+          function() {
             return group.associate.delete();
           }
         ).then(
