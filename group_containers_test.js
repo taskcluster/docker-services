@@ -144,19 +144,75 @@ suite('group_containers', function() {
   });
 
   suite('#_up', function() {
+    var deps;
     setup(function() {
       subject = new GroupContainers(docker, serverConfig, name);
+      deps = subject.groupConfig.dependencyGroups();
     });
 
-    suite('when nothing is running', function() {
+    suite('worker is created but not running', function() {
+
+      var workerId;
       setup(function() {
-        return subject._up(subject.groupConfig.dependencyGroups());
+        return subject._deamonize('worker').then(
+          function(id) {
+            workerId = id;
+          }
+        );
+      });
+
+      setup(function() {
+        return subject._stop(workerId);
+      });
+
+      setup(function() {
+        return subject._up(deps);
+      });
+
+      test('app is launched only one worker is running', function() {
+        return subject.inspectServices().then(
+          function(result) {
+            var workers = result.worker;
+            var apps = result.app;
+            assert.equal(workers.length, 1);
+            assert.ok(workers[0].running, 'worker is running');
+            assert.ok(apps[0].running, 'app is running');
+          }
+        );
+      });
+    });
+
+    suite('worker is running', function() {
+
+      setup(function() {
+        return subject._deamonize('worker');
+      });
+
+      setup(function() {
+        return subject._up(deps);
+      });
+
+      test('app is launched only one worker is running', function() {
+        return subject.inspectServices().then(
+          function(result) {
+            var workers = result.worker;
+            var apps = result.app;
+            assert.equal(workers.length, 1);
+            assert.ok(workers[0].running, 'worker is running');
+            assert.ok(apps[0].running, 'app is running');
+          }
+        );
+      });
+    });
+
+    suite('nothing is running', function() {
+      setup(function() {
+        return subject._up(deps);
       });
 
       test('everything should be launched', function() {
         return subject.inspectServices().then(
           function(result) {
-            console.log(result);
             assert.ok(result.worker, 'has worker');
             assert.ok(result.app, 'has app');
 

@@ -41,18 +41,13 @@ GroupContainers.prototype = {
   },
 
   /**
-  Start running a service as deamon background process.
+  Start a created container and link it.
 
-  @param {String} name of the service.
-  @param {Object} links map of available links.
+  @param {Object} service associated with the container.
+  @param {String} containerId docker container id.
+  @param {Object} links current link mapping.
   */
-  _deamonize: function(name, links) {
-    var service = this.groupConfig.services[name];
-    var docker = this.docker;
-
-    debug('start deamonize', name, service);
-
-    var createConfig = { Image: service.image };
+  _start: function(service, containerId, links) {
     var startConfig = { Links: [] };
 
     // check for links and build the link associations for this
@@ -68,7 +63,22 @@ GroupContainers.prototype = {
       startConfig.Links.push(links[linkServiceName] + ':' + linkAliasName);
     });
 
-    debug('deamonize', name, createConfig, startConfig);
+    return this.docker.getContainer(containerId).start(startConfig);
+  },
+
+  /**
+  Start running a service as deamon background process.
+
+  @param {String} name of the service.
+  @param {Object} links map of available links.
+  */
+  _deamonize: function(name, links) {
+    var service = this.groupConfig.services[name];
+    var docker = this.docker;
+
+    debug('deamonize', name, service);
+
+    var createConfig = { Image: service.image };
 
     var containerInterface;
     var id;
@@ -81,12 +91,11 @@ GroupContainers.prototype = {
         return this.associate.addContainer(id, name);
       }.bind(this)
     ).then(
-      function(value) {
-        // XXX: get the start config
-        return containerInterface.start(startConfig);
-      }
+      function() {
+        return this._start(service, id, links);
+      }.bind(this)
     ).then(
-      function(value) {
+      function() {
         return id;
       }
     );
@@ -102,24 +111,20 @@ GroupContainers.prototype = {
         var name = service.name;
         // check to see if we have one running already
         var serviceState = state[name];
-        var instance;
 
-        if (
-          serviceState &&
-          (instance = serviceState[0]) &&
-          instance.running
-        ) {
-          // XXX: always linking the first one is a good start but links
-          //      don't extend much beyond 1:1 (with the possible
-          //      exception of ambassadors)
-          return links[name] = instance.name;
-        }
+        if (serviceState && serviceState[0]) {
+          var instance = serviceState[0];
+          links[name] = instance.name;
 
-        if (instance) {
-          throw new Error('cannot process new starts of down images');
+          if (!instance.running) {
+            // XXX: maybe this should throw as a link can be associated
+            // with a down service and restarting might be a better idea.
+            promises.push(this._start(service, instance.id, links));
+          }
+
+          // its running or we started it so move to the next item.
           return;
         }
-
 
         var promise = this._deamonize(name, links).then(
           function gotContainer(id) {
