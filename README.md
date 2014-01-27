@@ -3,12 +3,12 @@
 Docker orchestration library (written in node) for testing
 docker images. Images can depend on other images, etc...
 
-## Examples
+### Examples
 
 Lets say you have a node application which has a worker and uses both
 use amqp.
 
-`docker_services.json:`
+`docker_services.json`:
 
 ```json
 {
@@ -35,7 +35,18 @@ Then you could run a test on in the app like this:
 docker-services exec app npm test
 ```
 
-## Developing
+### Known issue
+
+  - docker must be on the host (meaning you must be on linux). This will be fixed soon.
+
+### Roadmap
+
+  - Remove the need for docker to run on the host
+  - Aggregate log output for exec (so we can see other services while running exec)
+  - Formal support for `up` and `down` for deamonized services (you won't need to leave exec running)
+  - Building of docker images
+
+### Developing
 
 You need [vagrant](http://www.vagrantup.com/).
 
