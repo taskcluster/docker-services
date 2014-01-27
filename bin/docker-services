@@ -9,6 +9,7 @@ var ContainerGroup = require('../group_containers');
 var SERVICES_FILE = 'docker_services.json';
 
 program.
+  option('--version', 'return the current version of docker-services').
   command('exec <service> [cmd]').
   description('run a command on a service then shut it down').
   option(
@@ -49,3 +50,8 @@ program.
   });
 
 program.parse(process.argv);
+
+if (process.version) {
+  console.log(require('../package.json').version);
+  process.exit(0);
+}

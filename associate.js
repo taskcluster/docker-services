@@ -8,7 +8,7 @@ file manages those "associate" dockers which contain the details of the
 groups.
 */
 
-var IMAGE = 'taskcluster/docker-service-associate';
+var IMAGE = 'lightsofapollo/docker-service-associate';
 var IMAGE_TAG = require('./package.json').version;
 
 var Promise = require('promise');

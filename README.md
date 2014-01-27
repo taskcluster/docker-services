@@ -34,3 +34,21 @@ Then you could run a test on in the app like this:
 ```sh
 docker-services exec app npm test
 ```
+
+## Developing
+
+You need [vagrant](http://www.vagrantup.com/).
+
+### Running the tests
+
+```sh
+vagrant up
+vagrant ssh
+cd /vagrant
+make test
+```
+
+### Publishing a new version
+
+The 'associate' is a docker image that also needs to be published
+for each version (right now this is tied to my docker account).
