@@ -8,7 +8,7 @@ docker images. Images can depend on other images, etc...
 Lets say you have a node application which has a worker and uses both
 use amqp.
 
-`docker_services.json:`
+`docker_services.json`:
 
 ```json
 {
