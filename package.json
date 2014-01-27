@@ -1,6 +1,6 @@
 {
   "name": "docker-services",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "docker-services",
   "main": "group_containers.js",
   "scripts": {
