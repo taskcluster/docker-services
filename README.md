@@ -45,7 +45,7 @@ docker-services exec app npm test
 `docker-services exec <service> [options]` handles bring up and down of dependencies but has the capabilities as the `docker run` command (creates a docker subshell with the correct options).
 
 
-## Known issue
+## Known issues
 
   - docker must be on the host (meaning you must be on linux). This will be fixed soon.
   - because of how `exec` is implemented (without knowledge of docker options) you must pass parameteres in (IMO)
