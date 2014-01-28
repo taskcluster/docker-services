@@ -48,6 +48,8 @@ docker-services exec app npm test
 ## Known issue
 
   - docker must be on the host (meaning you must be on linux). This will be fixed soon.
+  - because of how `exec` is implemented (without knowledge of docker options) you must pass parameteres in (IMO)
+    correctly do this: `exec -e=VALUE=yey` not this `-e VALUE=yey` bad things will happen.
 
 ## Roadmap
 
