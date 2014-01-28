@@ -1,4 +1,4 @@
-VERSION=$(shell ../bin/docker-services --version)
+VERSION=$(shell ../bin/docker-services version)
 .PHONY: build
 build:
 	docker build -t \

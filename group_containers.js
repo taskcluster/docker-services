@@ -3,6 +3,7 @@ var GroupConfig = require('./group_config');
 var Promise = require('promise');
 var DockerProc = require('./docker_proc');
 
+var dockerUtils = require('./docker_utils');
 var debug = require('debug')('docker-service:group_containers');
 
 /**
@@ -30,7 +31,7 @@ function GroupContainers(docker, groupConfig, name) {
   this.docker = docker;
   this.name = name;
 
-  this.groupConfig = new GroupConfig(groupConfig);
+  this.config = new GroupConfig(groupConfig);
   this.associate = new Associate(docker, name);
 }
 
@@ -68,7 +69,7 @@ GroupContainers.prototype = {
   _start: function(name, containerId, links) {
     debug('start container', name, containerId);
 
-    var startConfig = this.groupConfig.dockerStartConfig(name, links);
+    var startConfig = this.config.dockerStartConfig(name, links);
     return this.docker.getContainer(containerId).start(startConfig);
   },
 
@@ -82,11 +83,17 @@ GroupContainers.prototype = {
     var docker = this.docker;
 
     debug('deamonize', name);
-    var createConfig = this.groupConfig.dockerCreateConfig(name);
+    var createConfig = this.config.dockerCreateConfig(name);
 
     var containerInterface;
     var id;
-    return docker.createContainer(createConfig).then(
+
+    // ensure that the image is downloaded
+    return dockerUtils.ensureImage(docker, createConfig.Image).then(
+      function() {
+        return docker.createContainer(createConfig);
+      }
+    ).then(
       function onCreate(container) {
         id = container.id;
         containerInterface = docker.getContainer(id);
@@ -148,7 +155,7 @@ GroupContainers.prototype = {
     }.bind(this);
   },
 
-  _up: function(dependencies) {
+  _startDependencyGroups: function(dependencies) {
     if (!dependencies.length) return Promise.from(false);
 
     var links = {};
@@ -183,10 +190,10 @@ GroupContainers.prototype = {
   @param {Array} [services] optional list of services to launch.
   @return {Promise}
   */
-  up: function(services) {
+  startServices: function(services) {
     debug('up');
-    var deps = this.groupConfig.dependencyGroups(services);
-    return this._up(deps);
+    var deps = this.config.dependencyGroups(services);
+    return this._startDependencyGroups(deps);
   },
 
   /**
@@ -221,8 +228,8 @@ GroupContainers.prototype = {
 
   @return {Promise}
   */
-  down: function() {
-    debug('down');
+  stopServices: function() {
+    debug('stopServices');
     return this._invokeContainerMethod(function(service) {
       if (service.running) {
         return this._stop(service.id);
@@ -237,11 +244,23 @@ GroupContainers.prototype = {
 
   @return {Promise}
   */
-  remove: function() {
-    debug('remove');
+  removeServices: function() {
+    debug('removeServices');
     return this._invokeContainerMethod(function(service) {
       return this._remove(service.id);
     }.bind(this));
+  },
+
+  /**
+  Start all the dependencies of a given service.
+  */
+  startDependenciesFor: function(name) {
+    var deps = this.config.dependencyGroups([name]);
+
+    // remove the root node
+    deps.pop();
+
+    return this._startDependencyGroups(deps);
   },
 
   /**
@@ -253,21 +272,17 @@ GroupContainers.prototype = {
   */
   spawn: function(name, cmd, options) {
     debug('spawn', name, cmd);
-    var deps = this.groupConfig.dependencyGroups([name]);
-
-    // remove the root node
-    deps.pop();
 
     var overrides;
     if (cmd) {
       overrides = { Cmd: cmd };
     }
 
-    var createConfig = this.groupConfig.dockerCreateConfig(name, overrides);
+    var createConfig = this.config.dockerCreateConfig(name, overrides);
 
-    return this._up(deps).then(
+    return this.startDependenciesFor(name).then(
       function(links) {
-        var startConfig = this.groupConfig.dockerStartConfig(name, links);
+        var startConfig = this.config.dockerStartConfig(name, links);
 
         return new DockerProc(this.docker, {
           start: startConfig,

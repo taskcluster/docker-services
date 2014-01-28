@@ -58,14 +58,17 @@ Ensure a single image exists locally. If it does not exist locally pull it from
 the docker index.
 */
 function ensureImage(docker, image) {
+  debug('ensure image', image);
   // first attempt to find the image locally...
   return docker.getImage(image).inspect().then(
     function inspection(gotImg) {
+      debug('inspection success', gotImg);
       // false means we didn't pull
       return false;
     },
 
     function missingImage() {
+      debug('image is missing pull', image);
       // image is missing so pull it
       return pullImage(docker, image).then(function() {
         // indicate that we pulled a fresh image.

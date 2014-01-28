@@ -14,7 +14,7 @@ suite('group_containers', function() {
   });
 
   teardown(function() {
-    return subject.remove();
+    return subject.removeServices();
   });
 
   teardown(function() {
@@ -147,11 +147,11 @@ suite('group_containers', function() {
     });
   });
 
-  suite('#_up', function() {
+  suite('#_startDependencyGroups', function() {
     var deps;
     setup(function() {
       subject = new GroupContainers(docker, serverConfig, name);
-      deps = subject.groupConfig.dependencyGroups();
+      deps = subject.config.dependencyGroups();
     });
 
     suite('worker is created but not running', function() {
@@ -170,7 +170,7 @@ suite('group_containers', function() {
       });
 
       setup(function() {
-        return subject._up(deps);
+        return subject._startDependencyGroups(deps);
       });
 
       test('app is launched only one worker is running', function() {
@@ -193,7 +193,7 @@ suite('group_containers', function() {
       });
 
       setup(function() {
-        return subject._up(deps);
+        return subject._startDependencyGroups(deps);
       });
 
       test('app is launched only one worker is running', function() {
@@ -212,7 +212,7 @@ suite('group_containers', function() {
     suite('nothing is running', function() {
       var links;
       setup(function() {
-        return subject._up(deps).then(
+        return subject._startDependencyGroups(deps).then(
           function(result) {
             links = result;
           }
@@ -311,7 +311,7 @@ suite('group_containers', function() {
 
   suite('#up', function() {
     test('all services', function() {
-      return subject.up().then(
+      return subject.startServices().then(
         function() { return subject.inspectServices() }
       ).then(
         function(services) {
@@ -324,7 +324,7 @@ suite('group_containers', function() {
     });
 
     test('worker only', function() {
-      return subject.up(['worker']).then(
+      return subject.startServices(['worker']).then(
         function() { return subject.inspectServices() }
       ).then(
         function(services) {
@@ -336,14 +336,14 @@ suite('group_containers', function() {
     });
   });
 
-  suite('#down', function() {
+  suite('#stopServices', function() {
     suite('everything', function() {
       setup(function() {
-        return subject.up();
+        return subject.startServices();
       });
 
       setup(function() {
-        return subject.down();
+        return subject.stopServices();
       });
 
       test('nothing is running', function() {
@@ -360,13 +360,13 @@ suite('group_containers', function() {
     });
   });
 
-  suite('#remove', function() {
+  suite('#removeServices', function() {
     setup(function() {
-      return subject.up();
+      return subject.startServices();
     });
 
     setup(function() {
-      return subject.remove();
+      return subject.removeServices();
     });
 
     test('everything is removed', function() {
