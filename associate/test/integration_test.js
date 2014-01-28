@@ -11,7 +11,7 @@ suite('running as docker deamon', function() {
   var containerId;
   setup(function(done) {
     exec(
-      'docker run -p 60044 -d lightsofapollo/docker-service-associate:' + version,
+      'docker run -p 60044 -d lightsofapollo/docker-service-associate',
       function(err, _containerId) {
         containerId = _containerId.trim();
         done(err);
